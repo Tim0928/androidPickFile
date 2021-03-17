@@ -1,8 +1,5 @@
 package com.example.simplepickfile;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
@@ -16,17 +13,23 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
-
-import static android.os.Environment.DIRECTORY_DOWNLOADS;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class MainActivity extends AppCompatActivity {
     private EditText editTextPath;
@@ -162,9 +165,126 @@ private File file;
 
                             byte[] bytes = str.getBytes();
 //                            writeBinaryFile(bytes, Environment.getExternalStorageDirectory().getPath()+File.separator+"good.bin");
-                            String STR = filePath.replace(metaData.getDisplayName(),"");
-                            writeBinaryFile(bytes, STR+"good.bin");
+                            String pathOnlyStr = filePath.replace(metaData.getDisplayName(),"");
+//                            writeBinaryFile(bytes, pathOnlyStr+"good.bin");
+//-------------------------------------------------------------------
 
+
+
+
+
+//                            // create input stream of some IntelHex data
+//                            InputStream is = new FileInputStream("Application.hex");
+//
+//                            // create IntelHexParserObject
+//                            IntelHexParser ihp = new IntelHexParser(is);
+//
+//                            // register parser listener
+//                            ihp.setDataListener(new IntelHexDataListener() {
+//                                @Override
+//                                public void data(long address, byte[] data) {
+//                                    // process data
+//                                }
+//
+//                                @Override
+//                                public void eof() {
+//                                    // do some action
+//                                }
+//                            });
+//                            ihp.parse();
+//------------------------------------------------------------
+                            String fileIn = filePath;//"Application.hex";
+                            String fileOut = pathOnlyStr+"Application.bin";
+                            String dataFrom = "min";
+                            String dataTo = "0xffff";
+                            boolean minimize = false;
+
+//                            if (args.length == 0) {
+//                                System.out.println("usage:");
+//                                System.out.println("    hex2bin <hex> <bin> <start address> <end address> [minimize]");
+//                                System.out.println();
+//                                System.out.println("    full address range of app.hex");
+//                                System.out.println("        hex2bin app.hex app.bin");
+//                                System.out.println();
+//                                System.out.println("    limited exact address range of app.hex, undefined data are 0xff");
+//                                System.out.println("        hex2bin app.hex app.bin 0x0000 0x1fff");
+//                                System.out.println();
+//                                System.out.println("    limited minimal address range of app.hex, start at 0x0000,");
+//                                System.out.println("    max address is 0x1fff, but can be lower");
+//                                System.out.println("        hex2bin app.hex app.bin 0x0000 0x1fff minimize");
+//                                return;
+//                            }
+//
+//                            if (args.length >= 1) {
+//                                fileIn = args[0];
+//                            }
+//
+//                            if (args.length >= 2) {
+//                                fileOut = args[1];
+//                            }
+//
+//                            if (args.length >= 3) {
+//                                dataFrom = args[2];
+//                            }
+//
+//                            if (args.length >= 4) {
+//                                dataTo = args[3];
+//                            }
+//
+//                            if (args.length >= 5) {
+//                                if (args[4].equals("minimize")) {
+//                                    minimize = true;
+//                                }
+//                            }
+
+                            try (FileInputStream is = new FileInputStream(fileIn)) {
+                                OutputStream os = new FileOutputStream(fileOut);
+                                // init parser
+                                Parser parser = new Parser(is);
+
+                                // 1st iteration - calculate maximum output range
+                                RangeDetector rangeDetector = new RangeDetector();
+                                parser.setDataListener(rangeDetector);
+                                parser.parse();
+                                is.getChannel().position(0);
+                                Region outputRegion = rangeDetector.getFullRangeRegion();
+
+                                // if address parameter is "max", calculate maximum memory region
+                                if (!("min".equals(dataFrom))) {
+                                    outputRegion.setAddressStart(Long.parseLong(dataFrom.substring(2), 16));
+                                }
+                                if (!("max".equals(dataTo))) {
+                                    outputRegion.setAddressEnd(Long.parseLong(dataTo.substring(2), 16));
+                                }
+
+                                // 2nd iteration - actual write of the output
+                                BinWriter writer = new BinWriter(outputRegion, os, minimize);
+                                parser.setDataListener(writer);
+                                parser.parse();
+
+                                // print statistics
+                                System.out.printf("Program start address 0x%08X\r\n", parser.getStartAddress());
+                                System.out.println("Memory regions: ");
+                                System.out.println(rangeDetector.getMemoryRegions());
+
+                                System.out.print("Written output: ");
+                                System.out.println(outputRegion);
+
+                            } catch (IntelHexException | IOException ex) {
+                                Logger.getLogger(TAG).log(Level.SEVERE, null, ex);
+                            }
+
+
+                            //---------------------
+
+
+
+
+
+
+
+
+                            //------------------------
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -231,7 +351,7 @@ private File file;
 
 
     public MetaData dumpImageMetaData(Uri uri) {
-        String replacestr = null;
+//        String replacestr = null;
         String token = uri.getLastPathSegment();//getPath();
         Log.i(TAG, "path: " + token);
         MetaData metaData = new MetaData();
