@@ -196,7 +196,7 @@ private File file;
                             String fileIn = filePath;//"Application.hex";
                             String fileOut = pathOnlyStr+"Application.bin";
                             String dataFrom = "min";
-                            String dataTo = "0xffff";
+                            String dataTo = "max";
                             boolean minimize = false;
 
 //                            if (args.length == 0) {
