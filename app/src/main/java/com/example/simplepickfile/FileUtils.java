@@ -24,7 +24,7 @@ public class FileUtils {
     private static final String LOG_TAG = "FileUtils";
 
     private static Uri contentUri = null;
-
+    private static String TAG = "FileUtils";
     /**
      * Get a file path from a Uri. This will get the the path for Storage Access
      * Framework Documents, as well as the _data field for the MediaStore and
@@ -49,7 +49,6 @@ public class FileUtils {
                 final String docId = DocumentsContract.getDocumentId(uri);
                 final String[] split = docId.split(":");
                 final String type = split[0];
-
                 String fullPath = getPathFromExtSD(split);
                 if (fullPath != "") {
                     return fullPath;
@@ -202,6 +201,19 @@ public class FileUtils {
                 return fullPath;
             }
         }
+
+
+        //hot fix tim
+
+        //fix some devices(Android Q),'type' like "71F8-2C0A/"
+        //but "primary".equalsIgnoreCase(type) is false
+        fullPath = "/storage/"+ type  + relativePath;
+        if (fileExists(fullPath)) {
+//            fullPath = "/storage/sdcard1"+ relativePath;
+            return fullPath;
+        }
+
+
 
         // Environment.isExternalStorageRemovable() is `true` for external and internal storage
         // so we cannot relay on it.
